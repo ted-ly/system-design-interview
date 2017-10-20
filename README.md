@@ -9,3 +9,5 @@
 * [Success in Tech Youtube channel](https://www.youtube.com/channel/UC-vYrOAmtrx9sBzJAf3x_xw)
 * [How to ace system design interview](https://www.palantir.com/2011/10/how-to-ace-a-systems-design-interview/)
 * [David Malan Scalability Web Development lecture](https://youtu.be/-W9F__D3oY4)
+* [Scalability for Dummies](http://www.lecloud.net/tagged/scalability)
+* [Database sharding](http://highscalability.com/blog/2009/8/6/an-unorthodox-approach-to-database-design-the-coming-of-the.html)
