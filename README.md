@@ -2,10 +2,16 @@
 
 * [What is system design?](#what-is-system-design)
 * [Basic things you should know](#basic-things-you-should-know)
-* [Step by step how to approach a system design interview question](#step-by-step)
+* [Step by step how to approach a system design interview question](#step-by-step-how-to-approach-a-system-design-interview-question)
+
+## What is system design?
+
+The process of defining the architecture, modules, interfaces, and data for a system to satisfy specified requirements. [System design](https://en.wikipedia.org/wiki/Systems_design) could be seen as the application of systems theory to product environment.
+
 
 ## Basic things you should know
 
+* [Availability patterns](#availability-patterns)
 * [Domain name system](#domain-name-system)
 * [Content delivery network](#content-delivery-network)
 * [Consistent hashing](#consistent-hashing)
@@ -69,6 +75,60 @@ Identify and address bottlenecks, given the constraints.  For example, do you ne
 * Database sharding
 
 Discuss potential solutions and trade-offs.  Everything is a trade-off.
+
+### Availability patterns
+
+There are two main patterns to support high availability: **fail-over** and **replication**.
+
+### Fail-over
+
+#### Active-passive
+
+With active-passive fail-over, heartbeats are sent between the active and the passive server on standby.  If the heartbeat is interrupted, the passive server takes over the active's IP address and resumes service.
+
+The length of downtime is determined by whether the passive server is already running in 'hot' standby or whether it needs to start up from 'cold' standby.  Only the active server handles traffic.
+
+Active-passive failover can also be referred to as master-slave failover.
+
+#### Active-active
+
+In active-active, both servers are managing traffic, spreading the load between them.
+
+If the servers are public-facing, the DNS would need to know about the public IPs of both servers.  If the servers are internal-facing, application logic would need to know about both servers.
+
+Active-active failover can also be referred to as master-master failover.
+
+#### Disadvantage(s): failover
+
+* Fail-over adds more hardware and additional complexity.
+* There is a potential for loss of data if the active system fails before any newly written data can be replicated to the passive.
+
+#### Replication
+
+Master-slave and master-master
+
+* Master-slave replication
+  * Master serves reads and writes, replicating writes to one or more slaves.
+  * Slaves serves only reads, can replicate to additional slaves in a tree-like fashion.
+  * If the master goes offline, the system can continue to operate in read-only mode until a slave is promoted to a master or a new master is provisioned.
+  * **Disadvanges(s):**
+    * Additional logic is needed to promote a slave to a master.
+
+* Master-master replication
+  * Both masters serve reads and writes and coordinate with each other on writes.
+  * If either master goes down, the system can continue to operate with both reads and writes.
+  * **Disadvantage(s):**
+    * You'll need a load balancer or you'll need to make changes to your application logic to determine where to write.
+    * Most master-master systems are either loosely consistent (violating ACID) or have increased write latency due to synchronization.
+    * Conflict resolution comes more into play as more write nodes are added and as latency increases.
+
+* **Replication disadvantage(s):**
+  * There is a potential for loss of data if the master fails before any newly written data can be replicated to other nodes.
+  * Writes are replayed to the read replicas. If there are a lot of writes, the read replicas can get bogged down with replaying writes and can't do as many reads.
+  * The more read slaves, the more you have to replicate, which leads to greater replication lag.
+  * On some systems, writing to the master can spawn multiple threads to write in parallel, whereas read replicas only support writing sequentially with a single thread.
+  * Replication adds more hardware and additional complexity.
+
 
 ### Back-of-the-envelope calculations
 
