@@ -16,6 +16,7 @@ The process of defining the architecture, modules, interfaces, and data for a sy
 * [Content delivery network](#content-delivery-network)
 * [CAP theorem](#cap-theorem)
 * [Load balancer](#load-balancer)
+* [Reverse proxy](#reverse-proxy)
 * [Caching](#caching)
 * [Sharding or data paritioning](#sharding-or-data-partitioning)
 * [Indexes](#indexes)
@@ -274,13 +275,22 @@ Load balancers can route traffic based on various metrics, including:
 
 ### Layer 4 load balancing
 
-Layer 4 load balancers look at info at the [transport layer](#communication) to decide how to distribute requests.  Generally, this involves the source, destination IP addresses, and ports in the header, but not the contents of the packet.  Layer 4 load balancers forward network packets to and from the upstream server, performing [Network Address Translation (NAT)](https://www.nginx.com/resources/glossary/layer-4-load-balancing/).
+* Layer 4 load balancing uses information defined at the networking transport layer for deciding how to distribute client requests across a group of servers.
+* Layer 4 bases load-balancing decision on the source and destination IP addresses and ports recorded in the packing header, without considering the contents of the packet.
+* When it makes load balancing decision, it also performs Network Address Translation (NAT) on the request packet, changing the recorded destination IP address from its own to that of the content server it has chosen on the internal network.
+* Similarly, before forwarding server responses to clients, the load balancer changes the source address recorded in the packet header form the server's IP address to its own.
+* Layer 4 load balancers make their routing decisions based on address information extracted from the first few packets in the Transmission Control Protocol (TCP) stream, and do not inspect the packet content.
+* A layer 4 load balancer is often a dedicated hardware device supplied by a vendor and runs proprietary load-balancing software, and NAT operations might be performed by specialized chips rather than in software.
+* Layer 4 load balancing was a popular architectural approach to traffic handling when computer hardware was not as powerful as it is today, and the interaction between clients and application servers was much less complex.
 
 ### Layer 7 load balancing
 
-Layer 7 load balancers look at the [application layer](#communication) to decide how to distribute requests.  This can involve contents of the header, message, and cookies.  Layer 7 load balancers terminates network traffic, reads the message, makes a load-balancing decision, then opens a connection to the selected server.  For example, a layer 7 load balancer can direct video traffic to servers that host videos while directing more sensitive user billing traffic to security-hardened servers.
-
-At the cost of flexibility, layer 4 load balancing requires less time and computing resources than Layer 7, although the performance impact can be minimal on modern commodity hardware.
+* Layer 7 load balancing operates at high-level application layer, which deals with actual content of each message.
+* HTTP is predominant Layer 7 protocol for website traffic on the internet.
+* A Layer 7 load balancer terminates the network traffic and reads the message within, it can make load-balancing decision based on the content of the message (the URL or cookie, for example).  It then makes a new TCP connection to the selected upstream server (or reuses the existing one, by means of [HTTP keepalives](https://www.nginx.com/blog/http-keepalives-and-web-performance/)) and writes the request to the server.
+* Layer 7 load balancing is more CPU-intensive than packet-based Layer 4 load balancing, but rarely causes degraded performance on a modern server.
+* Layer 7 load balancing enables the load balancer to make smarter load-balancing decisions, and to apply optimizations and changes to the content (such as compression and encryption). It uses buffering to offload slow connections from the upstream servers, which improves performance.
+* A device that performs Layer 7 load balancing is often referred to as a [reverse-proxy](#reverse-proxy) server.
 
 ### Horizontal scaling
 
@@ -308,6 +318,233 @@ Load balancers can also help with horizontal scaling, improving performance and 
 * [Layer 4 load balancing](https://www.nginx.com/resources/glossary/layer-4-load-balancing/)
 * [Layer 7 load balancing](https://www.nginx.com/resources/glossary/layer-7-load-balancing/)
 * [ELB listener config](http://docs.aws.amazon.com/elasticloadbalancing/latest/classic/elb-listener-config.html)
+
+### Reverse proxy
+
+* A reverse proxy server is a type of proxy server that typically sits behind the firewall in a private network and directs client requests to the appropriate backend server.
+* A reverse proxy provides an additional level of abstraction and control to ensure the smooth flow of network traffic between clients and servers.
+* Benefits:
+  * **Increased security** - No information about backend servers is visible outside internal network, so malicious clients cannot access them directly to exploit any vulnerabilities. Many reverse proxy servers include features that help protect backend servers from [distributed denial-of-service](https://www.nginx.com/resources/glossary/distributed-denial-of-service/) (DDoS) attacks, for example by rejecting traffic from particular client IP addresses(blacklisting), or limiting the number of connections accepted from each client.
+  * **Increased scalability and flexibility** - Because clients see only the reverse proxy's IP address, you are free to change the configuration of your backend infrastructure. This is particularly useful in a load-balanced environment, where you can scale the number of severs up and down to match fluctuations in traffic volume.
+  * **Web acceleration** - reducing the time it takes to generate a response and return it to the client.  Techniques for web acceleration include the following:
+    * **Compression** - Compressing server responses before returning them to the client (for instance with gzip) reduces the amount of bandwidth they require, which speeds their transit over the network.
+    * **SSL termination** - Encrypting the traffic between clients and servers protects it as it crosses a public network like the internet. But decryption and encryption can be computationally expensive.  By decrypting incoming requests and encrypting server responses, the reverse proxy frees up resources on backend servers which they can then devote to their main purpose, serving content.
+    * **Caching** - Before returning the backend server's response to the client, the reverse proxy stores a copy of it locally. When the client (or any client) makes the same request, the reverse proxy can provid the response itself from the cache instead of forwarding the request to the backend server. This both decreases response time to the client and reduces the load on the backend server.
+    * **Static content** - Serve static content directly
+      * HTML/CSS/JS
+      * Photos
+      * Videos
+      * Etc
+
+### Load balancer vs reverse proxy
+
+* Deploying a load balancer is useful when you have multiple servers.  Often, load balancers  route traffic to a set of servers serving the same function.
+* Reverse proxies can be useful even with just one web server or application server, opening up the benefits described in the previous section.
+* Solutions such as NGINX and HAProxy can support both layer 7 reverse proxying and load balancing.
+
+### Disadvantage(s): reverse proxy
+
+* Introducing a reverse proxy results in increased complexity.
+* A single reverse proxy is a single point of failure, configuring multiple reverse proxies (ie a [failover](https://en.wikipedia.org/wiki/Failover)) further increases complexity.
+
+### Source(s) and further reading
+
+* [Reverse proxy vs load balancer](https://www.nginx.com/resources/glossary/reverse-proxy-vs-load-balancer/)
+* [NGINX architecture](https://www.nginx.com/blog/inside-nginx-how-we-designed-for-performance-scale/)
+* [HAProxy architecture guide](http://www.haproxy.org/download/1.2/doc/architecture.txt)
+* [Wikipedia](https://en.wikipedia.org/wiki/Reverse_proxy)
+
+### Caching
+
+<p align="center">
+  <img src="http://i.imgur.com/Q6z24La.png">
+  <br/>
+  <i><a href=http://horicky.blogspot.com/2010/10/scalable-system-design-patterns.html>Source: Scalable system design patterns</a></i>
+</p>
+
+Caching improves page load times and can reduce the load on your servers and databases.  In this model, the dispatcher will first lookup if the request has been made before and try to find the previous result to return, in order to save the actual execution.
+
+Databases often benefit from a uniform distribution of reads and writes across its partitions.  Popular items can skew the distribution, causing bottlenecks.  Putting a cache in front of a database can help absorb uneven loads and spikes in traffic.
+
+### Client caching
+
+Caches can be located on the client side (OS or browser), [server side](#reverse-proxy), or in a distinct cache layer.
+
+### CDN caching
+
+[CDNs](#content-delivery-network) are considered a type of cache.
+
+### Web server caching
+
+[Reverse proxies](#reverse-proxy-web-server) and caches such as [Varnish](https://www.varnish-cache.org/) can serve static and dynamic content directly.  Web servers can also cache requests, returning responses without having to contact application servers.
+
+### Database caching
+
+Your database usually includes some level of caching in a default configuration, optimized for a generic use case.  Tweaking these settings for specific usage patterns can further boost performance.
+
+### Application caching
+
+In-memory caches such as Memcached and Redis are key-value stores between your application and your data storage.  Since the data is held in RAM, it is much faster than typical databases where data is stored on disk.  RAM is more limited than disk, so [cache invalidation](https://en.wikipedia.org/wiki/Cache_algorithms) algorithms such as [least recently used (LRU)](https://en.wikipedia.org/wiki/Cache_algorithms#Least_Recently_Used) can help invalidate 'cold' entries and keep 'hot' data in RAM.
+
+Redis has the following additional features:
+
+* Persistence option
+* Built-in data structures such as sorted sets and lists
+
+There are multiple levels you can cache that fall into two general categories: **database queries** and **objects**:
+
+* Row level
+* Query-level
+* Fully-formed serializable objects
+* Fully-rendered HTML
+
+Generally, you should try to avoid file-based caching, as it makes cloning and auto-scaling more difficult.
+
+### Caching at the database query level
+
+Whenever you query the database, hash the query as a key and store the result to the cache.  This approach suffers from expiration issues:
+
+* Hard to delete a cached result with complex queries
+* If one piece of data changes such as a table cell, you need to delete all cached queries that might include the changed cell
+
+### Caching at the object level
+
+See your data as an object, similar to what you do with your application code.  Have your application assemble the dataset from the database into a class instance or a data structure(s):
+
+* Remove the object from cache if its underlying data has changed
+* Allows for asynchronous processing: workers assemble objects by consuming the latest cached object
+
+Suggestions of what to cache:
+
+* User sessions
+* Fully rendered web pages
+* Activity streams
+* User graph data
+
+### When to update the cache
+
+Since you can only store a limited amount of data in cache, you'll need to determine which cache update strategy works best for your use case.
+
+#### Cache-aside
+
+<p align="center">
+  <img src="http://i.imgur.com/ONjORqk.png">
+  <br/>
+  <i><a href=http://www.slideshare.net/tmatyashovsky/from-cache-to-in-memory-data-grid-introduction-to-hazelcast>Source: From cache to in-memory data grid</a></i>
+</p>
+
+The application is responsible for reading and writing from storage.  The cache does not interact with storage directly.  The application does the following:
+
+* Look for entry in cache, resulting in a cache miss
+* Load entry from the database
+* Add entry to cache
+* Return entry
+
+```
+def get_user(self, user_id):
+    user = cache.get("user.{0}", user_id)
+    if user is None:
+        user = db.query("SELECT * FROM users WHERE user_id = {0}", user_id)
+        if user is not None:
+            key = "user.{0}".format(user_id)
+            cache.set(key, json.dumps(user))
+    return user
+```
+
+[Memcached](https://memcached.org/) is generally used in this manner.
+
+Subsequent reads of data added to cache are fast.  Cache-aside is also referred to as lazy loading.  Only requested data is cached, which avoids filling up the cache with data that isn't requested.
+
+##### Disadvantage(s): cache-aside
+
+* Each cache miss results in three trips, which can cause a noticeable delay.
+* Data can become stale if it is updated in the database.  This issue is mitigated by setting a time-to-live (TTL) which forces an update of the cache entry, or by using write-through.
+* When a node fails, it is replaced by a new, empty node, increasing latency.
+
+#### Write-through
+
+<p align="center">
+  <img src="http://i.imgur.com/0vBc0hN.png">
+  <br/>
+  <i><a href=http://www.slideshare.net/jboner/scalability-availability-stability-patterns/>Source: Scalability, availability, stability, patterns</a></i>
+</p>
+
+The application uses the cache as the main data store, reading and writing data to it, while the cache is responsible for reading and writing to the database:
+
+* Application adds/updates entry in cache
+* Cache synchronously writes entry to data store
+* Return
+
+Application code:
+
+```
+set_user(12345, {"foo":"bar"})
+```
+
+Cache code:
+
+```
+def set_user(user_id, values):
+    user = db.query("UPDATE Users WHERE id = {0}", user_id, values)
+    cache.set(user_id, user)
+```
+
+Write-through is a slow overall operation due to the write operation, but subsequent reads of just written data are fast.  Users are generally more tolerant of latency when updating data than reading data.  Data in the cache is not stale.
+
+##### Disadvantage(s): write through
+
+* When a new node is created due to failure or scaling, the new node will not cache entries until the entry is updated in the database.  Cache-aside in conjunction with write through can mitigate this issue.
+* Most data written might never read, which can be minimized with a TTL.
+
+#### Write-behind (write-back)
+
+<p align="center">
+  <img src="http://i.imgur.com/rgSrvjG.png">
+  <br/>
+  <i><a href=http://www.slideshare.net/jboner/scalability-availability-stability-patterns/>Source: Scalability, availability, stability, patterns</a></i>
+</p>
+
+In write-behind, the application does the following:
+
+* Add/update entry in cache
+* Asynchronously write entry to the data store, improving write performance
+
+##### Disadvantage(s): write-behind
+
+* There could be data loss if the cache goes down prior to its contents hitting the data store.
+* It is more complex to implement write-behind than it is to implement cache-aside or write-through.
+
+#### Refresh-ahead
+
+<p align="center">
+  <img src="http://i.imgur.com/kxtjqgE.png">
+  <br/>
+  <i><a href=http://www.slideshare.net/tmatyashovsky/from-cache-to-in-memory-data-grid-introduction-to-hazelcast>Source: From cache to in-memory data grid</a></i>
+</p>
+
+You can configure the cache to automatically refresh any recently accessed cache entry prior to its expiration.
+
+Refresh-ahead can result in reduced latency vs read-through if the cache can accurately predict which items are likely to be needed in the future.
+
+##### Disadvantage(s): refresh-ahead
+
+* Not accurately predicting which items are likely to be needed in the future can result in reduced performance than without refresh-ahead.
+
+### Disadvantage(s): cache
+
+* Need to maintain consistency between caches and the source of truth such as the database through [cache invalidation](https://en.wikipedia.org/wiki/Cache_algorithms).
+* Need to make application changes such as adding Redis or memcached.
+* Cache invalidation is a difficult problem, there is additional complexity associated with when to update the cache.
+
+### Source(s) and further reading
+
+* [From cache to in-memory data grid](http://www.slideshare.net/tmatyashovsky/from-cache-to-in-memory-data-grid-introduction-to-hazelcast)
+* [Scalable system design patterns](http://horicky.blogspot.com/2010/10/scalable-system-design-patterns.html)
+* [Introduction to architecting systems for scale](http://lethain.com/introduction-to-architecting-systems-for-scale/)
+* [Scalability, availability, stability, patterns](http://www.slideshare.net/jboner/scalability-availability-stability-patterns/)
+* [Scalability](http://www.lecloud.net/post/9246290032/scalability-for-dummies-part-3-cache)
+* [AWS ElastiCache strategies](http://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/Strategies.html)
+* [Wikipedia](https://en.wikipedia.org/wiki/Cache_(computing))
 
 ### Back-of-the-envelope calculations
 
