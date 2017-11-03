@@ -18,11 +18,9 @@ The process of defining the architecture, modules, interfaces, and data for a sy
 * [Load balancer](#load-balancer)
 * [Reverse proxy](#reverse-proxy)
 * [Caching](#caching)
-* [Sharding or data paritioning](#sharding-or-data-partitioning)
-* [Indexes](#indexes)
-* [Proxies](#proxies)
+* [Sharding](#sharding)
 * [Queues](#queues)
-* [SQL and noSQL](#sql-and-nosql)
+* [SQL or noSQL](#sql-or-nosql)
 * [Long-Polling vs websockets](#long-polling-vs-websockets)
 
 ## Step by step how to approach a system design interview question
@@ -545,6 +543,133 @@ Refresh-ahead can result in reduced latency vs read-through if the cache can acc
 * [Scalability](http://www.lecloud.net/post/9246290032/scalability-for-dummies-part-3-cache)
 * [AWS ElastiCache strategies](http://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/Strategies.html)
 * [Wikipedia](https://en.wikipedia.org/wiki/Cache_(computing))
+
+### Sharding
+
+* Sharding distributes data across different databases such that each database can only manage a subset of a data.
+* Sharding results in less read and write traffic, less replication, and more cache hits.
+* Index size is also reduced, which generally improves performances with faster queries.
+* If one shard goes down, the other shards are still operational, add some form of replication to avoid data loss.
+* Common ways to shard a table of users is either through the user's last name initial or the user's geographical location.
+
+### Disadvantage(s):
+
+* You'll need to update your application logic to work with shards, which could result in complex SQL queries.
+* Data distribution can become lopsided in a shard. For example, a set of power users on a shard could result in increased load to that shard compared to others.
+  * Rebalancing adds additional complexity. A sharding function based on consistent hashing can reduce the amount of transfered data.
+* Joining data from multiple shards is more complex.
+* Sharding adds more hardware and additional complexity.
+
+#### Source(s) and further reading:
+
+* [The coming of the shard](http://highscalability.com/blog/2009/8/6/an-unorthodox-approach-to-database-design-the-coming-of-the.html)
+* [Shard database architecture](https://en.wikipedia.org/wiki/Shard_(database_architecture))
+* [Consistent hashing](http://www.paperplanes.de/2011/12/9/the-magic-of-consistent-hashing.html)
+
+### Queues
+
+#### Message queues
+
+* Message queues receive, hold, and deliver messages.
+* How to use message queue in your application:
+  * An application publishes a job to the queue, then notifies the user of job status
+  * A worker picks up the job from the queue, processes it, then signals the job is complete
+* User is not blocked and the job is processed in the background. During this time, the client might optionally do a small amount of processing to make it seem like the task has completed.
+* **Redis** is useful as a simple message broker but messages can be lost.
+* **RabbitMQ** is popular but requires you to adapt to the AMQP protocol and manage your own nodes.
+* **Amazon SQS** is hosted but can have high latency and has the possibility of messages being delivered twice.
+
+#### Task queues
+
+* Task queues receive tasks and their related data, runs them, then delivers their results.
+* Can support scheduling and can be used to run computationally-intense jobs in the background.
+* **Celery** has support for scheduling and primarily has python support.
+
+#### Back pressure
+
+* Queues can grow significantly over time, the size can become larger than memory, resulting in cache misses, disk reads, and even slower performance.
+* Back pressure can help by limiting the queue size, maintain a high throughput rate and good response times for jobs already in the queue.
+* If the queue fills up, clients will get a server busy or HTTP 503 status code to try again later. Clients can retry the request at a later time.
+
+### Disadvantage(s):
+
+* Use cases such as inexpensive calculations and realtime workflows might be better suited for synchronous operations, as introducing queues can add delays and complexity.
+
+#### Source(s) and further reading:
+
+* [It's all a numbers game](https://www.youtube.com/watch?v=1KRYH75wgy4)
+* [Applying back pressure when overloaded](http://mechanical-sympathy.blogspot.com/2012/05/apply-back-pressure-when-overloaded.html)
+* [Little's law](https://en.wikipedia.org/wiki/Little%27s_law)
+* [What is the difference between a message queue and a task queue?](https://www.quora.com/What-is-the-difference-between-a-message-queue-and-a-task-queue-Why-would-a-task-queue-require-a-message-broker-like-RabbitMQ-Redis-Celery-or-IronMQ-to-function)
+
+### SQL or noSQL
+
+Reasons for SQL:
+
+* Structured data
+* Strict schema
+* Relational data
+* Need for complex joins
+* Transactions
+* Clear patterns for scaling
+* More established: developers, community, code, tools, etc
+* Lookups by index are very fast
+
+Reasons for NoSQL:
+
+* Semi-structured data
+* Dynamic or flexible schema
+* Non-relational data
+* No need for complex joins
+* Store many TB (or PB) of data
+* Very data intensive workload
+* Very high throughput for IOPS
+
+Sample data well-suited for NoSQL:
+
+* Rapid ingest of clickstream and log data
+* Leaderboard or scoring data
+* Temporary data, such as a shopping cart
+* Frequently accessed ('hot') tables
+* Metadata/lookup tables
+
+#### Source(s) and further reading:
+
+* [Scaling up to your first 10 million users](https://www.youtube.com/watch?v=vg5onp8TU6Q)
+* [SQL vs NoSQL differences](https://www.sitepoint.com/sql-vs-nosql-differences/)
+
+### Long-Polling vs websockets
+
+#### Long-Polling
+
+<p align="center">
+  <img src="https://i.stack.imgur.com/xuzzd.png">
+</p>
+
+A variation of the traditional polling technique and allows emulation of an information push from a server to a client. With long polling, the client requests information from the server in a similar way to a normal poll.
+
+* If the server does not have any information available for the client, instead of sending an empty response, the server holds the request and waits for some information to be available.
+* Once the information becomes available (or after a suitable timeout), a complete response is sent to the client. The client will normally then immediately re-request information from the server, so that the server will almost always have an available waiting request that it can use to deliver data in response to an event.
+* In a web/AJAX context, long polling is also known as Comet programming.
+
+#### Websockets
+
+<p align="center">
+  <img src="https://i.stack.imgur.com/ibBGL.png">
+</p>
+
+WebSockets provide a persistent connection between a client and server that both parties can use to start sending data at any time.
+
+* The client establishes a WebSocket connection through a process known as the WebSocket handshake. This process starts with the client sending a regular HTTP request to the server.
+* An Upgrade header is included in this request that informs the server that the client wishes to establish a WebSocket connection.
+
+#### Source(s) and further reading:
+
+* [What are Long-Polling, Websockets, Server-Sent Events (SSE) and Comet?](https://stackoverflow.com/questions/11077857/what-are-long-polling-websockets-server-sent-events-sse-and-comet)
+* [WebSockets vs Server-Sent Events vs Long-polling](http://dsheiko.com/weblog/websockets-vs-sse-vs-long-polling/)
+* [Differences between websockets and long polling for turn based game server](https://stackoverflow.com/questions/31715179/differences-between-websockets-and-long-polling-for-turn-based-game-server)
+* [An Introduction to WebSockets](http://blog.teamtreehouse.com/an-introduction-to-websockets)
+* [Push technology](https://en.wikipedia.org/wiki/Push_technology#Long_polling)
 
 ### Back-of-the-envelope calculations
 
