@@ -3,6 +3,9 @@
 * [What is system design?](#what-is-system-design)
 * [Basic things you should know](#basic-things-you-should-know)
 * [Step by step how to approach a system design interview question](#step-by-step-how-to-approach-a-system-design-interview-question)
+* [Appendix](#appendix)
+* [Company engineering blogs](#company-engineering-blogs)
+* [Credits and resources](#credits-and-resources)
 
 ## What is system design?
 
@@ -794,7 +797,7 @@ Handy metrics based on numbers above:
 * [Yahoo Engineering Blog](http://yahooeng.tumblr.com/)
 * [Yelp Engineering Blog](http://engineeringblog.yelp.com/)
 
-## Credits & Resources
+## Credits and resources
 
 * [Hired in tech](http://www.hiredintech.com/system-design/the-system-design-process/)
 * [donnemartin/system-design-primer](https://github.com/donnemartin/system-design-primer)
