@@ -1,4 +1,4 @@
-## Table Of Contents
+## Table of Content
 
 * [What is system design?](#what-is-system-design)
 * [Basic things you should know](#basic-things-you-should-know)
@@ -12,7 +12,7 @@
 The process of defining the architecture, modules, interfaces, and data for a system to satisfy specified requirements. [System design](https://en.wikipedia.org/wiki/Systems_design) could be seen as the application of systems theory to product environment.
 
 
-## Basic things you should know
+## Basic things you should know before going for a interview
 
 * [Availability patterns](#availability-patterns)
 * [Domain name system](#domain-name-system)
